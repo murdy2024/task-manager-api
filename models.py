@@ -6,3 +6,9 @@ class TaskDB(Base):
     id = Column(Integer, primary_key=True)
     title = Column(String(255), nullable=False)
     completed = Column(Boolean, default=False)
+class UserDB(Base):
+    __tablename__ = 'users'
+    id = Column(Integer, primary_key=True)
+    username = Column(String(255), unique=True, nullable=False)
+    email = Column(String(255), unique=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)

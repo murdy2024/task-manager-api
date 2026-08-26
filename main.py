@@ -1,9 +1,10 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy import text
 from database import engine, SessionLocal 
-from models import TaskDB
-from schemas import Task, TaskResponse
-  
+from models import TaskDB, UserDB
+from schemas import Task, TaskResponse, UserCreate, UserResponse, UserLogin
+from auth import hash_password, verify_password
+
 def get_db():
     db = SessionLocal()
     try:
@@ -12,6 +13,38 @@ def get_db():
         db.close()
 
 app = FastAPI()
+
+@app.post('/register', response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def register_user(user: UserCreate, db = Depends(get_db)):
+    hashed_password = hash_password(user.password)
+    new_user = UserDB(
+        username = user.username,
+        email = user.email,
+        hashed_password = hashed_password
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+@app.post('/login')
+def login_user(user: UserLogin, db = Depends(get_db)):
+    db_user = db.query(UserDB).filter(UserDB.username == user.username).first()
+    if not db_user:
+        raise HTTPException(
+            status_code=401,
+            detail='Invalid username or password'
+        )
+    if not verify_password(user.password, db_user.hashed_password):
+        raise HTTPException(
+            status_code=401,
+            detail='Invalid username or password'
+        )
+    return {
+        'message': 'Login successful'
+        }
+    
+
+
 
 @app.get('/db-test')
 def db_test():
