@@ -1,18 +1,23 @@
 # Task Manager API
 
-A RESTful Task Manager API built with **FastAPI**, **PostgreSQL**, and **SQLAlchemy**.
+A RESTful Task Manager API built with **FastAPI**, **PostgreSQL**, and **SQLAlchemy**, featuring user authentication and authorization with JWT.
 
 ## Features
 
+* User registration
+* Secure password hashing
+* User login with JWT authentication
+* OAuth2 Bearer token authentication
 * Create tasks
-* Get all tasks
+* Get all tasks belonging to the authenticated user
 * Get a task by ID
 * Update tasks
 * Delete tasks
+* User-specific task ownership
 * PostgreSQL database
 * SQLAlchemy ORM
 * Pydantic request and response validation
-* Environment variables for database credentials
+* Environment variables for sensitive configuration
 * Automatic interactive API documentation with Swagger UI
 
 ## Tech Stack
@@ -22,16 +27,23 @@ A RESTful Task Manager API built with **FastAPI**, **PostgreSQL**, and **SQLAlch
 * PostgreSQL
 * SQLAlchemy
 * Pydantic
+* PyJWT
+* pwdlib
+* OAuth2
 * Uvicorn
+* python-dotenv
 * Git & GitHub
 
 ## Project Structure
 
 ```text
 task-manager-api/
+│
 ├── .env
 ├── .gitignore
+├── auth.py
 ├── database.py
+├── jwt_token.py
 ├── main.py
 ├── models.py
 ├── schemas.py
@@ -40,12 +52,62 @@ task-manager-api/
 
 ### File Responsibilities
 
-* `main.py` — FastAPI application and API routes
+* `main.py` — FastAPI application, routes, authentication, and authorization
 * `database.py` — PostgreSQL connection and SQLAlchemy session
-* `models.py` — SQLAlchemy database models
+* `models.py` — SQLAlchemy database models and relationships
 * `schemas.py` — Pydantic request and response schemas
-* `.env` — Database configuration and credentials
+* `auth.py` — Password hashing and password verification
+* `jwt_token.py` — JWT access token creation
+* `.env` — Database credentials and secret configuration
 * `.gitignore` — Files that should not be uploaded to Git
+
+## Authentication
+
+The API uses **JWT Bearer tokens** for authentication.
+
+### Registration
+
+Create a new account using:
+
+```http
+POST /register
+```
+
+Example request:
+
+```json
+{
+  "username": "john",
+  "email": "john@example.com",
+  "password": "mypassword"
+}
+```
+
+### Login
+
+Login using:
+
+```http
+POST /login
+```
+
+The login endpoint uses OAuth2 form data:
+
+```text
+username=john
+password=mypassword
+```
+
+A successful login returns:
+
+```json
+{
+  "access_token": "your-jwt-token",
+  "token_type": "bearer"
+}
+```
+
+Use this token to authenticate requests to protected task endpoints.
 
 ## Setup
 
@@ -53,6 +115,7 @@ task-manager-api/
 
 ```bash
 git clone <your-repository-url>
+
 cd task-manager-api
 ```
 
@@ -71,7 +134,7 @@ venv\Scripts\activate
 ### 3. Install dependencies
 
 ```bash
-pip install fastapi uvicorn sqlalchemy psycopg2-binary python-dotenv
+pip install fastapi uvicorn sqlalchemy psycopg2-binary python-dotenv pyjwt pwdlib
 ```
 
 ### 4. Configure the database
@@ -80,9 +143,12 @@ Create a `.env` file in the project root:
 
 ```env
 DATABASE_URL=postgresql://username:password@localhost:5432/task_manager
+SECRET_KEY=your-secret-key
 ```
 
-Replace the username, password, and database name with your PostgreSQL configuration.
+Replace the values with your PostgreSQL configuration and a secure secret key.
+
+**Never commit your `.env` file to GitHub.**
 
 ### 5. Run the API
 
@@ -104,19 +170,23 @@ http://127.0.0.1:8000/docs
 
 ## API Endpoints
 
-| Method | Endpoint           | Description                  |
-| ------ | ------------------ | ---------------------------- |
-| GET    | `/`                | Test the API                 |
-| GET    | `/db-test`         | Test the database connection |
-| GET    | `/tasks`           | Get all tasks                |
-| POST   | `/tasks`           | Create a task                |
-| GET    | `/tasks/{task_id}` | Get a specific task          |
-| PUT    | `/tasks/{task_id}` | Update a task                |
-| DELETE | `/tasks/{task_id}` | Delete a task                |
+| Method | Endpoint           | Authentication | Description                        |
+| ------ | ------------------ | -------------- | ---------------------------------- |
+| GET    | `/`                | No             | Test the API                       |
+| GET    | `/db-test`         | No             | Test the database connection       |
+| POST   | `/register`        | No             | Register a new user                |
+| POST   | `/login`           | No             | Login and receive a JWT            |
+| GET    | `/tasks`           | Yes            | Get the authenticated user's tasks |
+| POST   | `/tasks`           | Yes            | Create a task                      |
+| GET    | `/tasks/{task_id}` | Yes            | Get a specific task                |
+| PUT    | `/tasks/{task_id}` | Yes            | Update a task                      |
+| DELETE | `/tasks/{task_id}` | Yes            | Delete a task                      |
 
 ## Example
 
 ### Create a task
+
+After authenticating, send:
 
 ```json
 {
@@ -125,7 +195,7 @@ http://127.0.0.1:8000/docs
 }
 ```
 
-### Response
+Example response:
 
 ```json
 {
@@ -135,8 +205,15 @@ http://127.0.0.1:8000/docs
 }
 ```
 
+Tasks belong to the user who created them. Authenticated users can only access, update, and delete their own tasks.
+
 ## Security
 
-Database credentials are stored in `.env` and are excluded from Git using `.gitignore`.
+* Passwords are hashed before being stored in the database.
+* Password hashes are never returned through the API.
+* JWT tokens are used to authenticate protected endpoints.
+* Users can only access their own tasks.
+* Database credentials and the JWT secret are stored in `.env`.
+* `.env` is excluded from Git using `.gitignore`.
 
-**Never commit your `.env` file or database passwords to GitHub.**
+**Never commit your `.env` file, database password, or JWT secret to GitHub.**
